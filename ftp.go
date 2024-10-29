@@ -83,9 +83,8 @@ type Entry struct {
 	Name     string
 	FileMode os.FileMode
 	Target   string // target of symbolic link
-	//Type     EntryType
-	Size uint64
-	Time time.Time
+	Size     uint64
+	Time     time.Time
 }
 
 // Response represents a data-connection
@@ -1035,7 +1034,7 @@ func (c *ServerConn) RemoveDirRecur(path string) error {
 
 	for _, entry := range entries {
 		if entry.Name != ".." && entry.Name != "." {
-			if entry.FileMode.IsRegular() {
+			if entry.FileMode.IsDir() {
 				err = c.RemoveDirRecur(currentDir + "/" + entry.Name)
 				if err != nil {
 					return err
