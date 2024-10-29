@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"syscall"
 	"testing"
 	"time"
@@ -120,8 +121,8 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if entry.Size != 42 {
 		t.Errorf("entry size %q, expected %q", entry.Size, 42)
 	}
-	if entry.Type != EntryTypeFile {
-		t.Errorf("entry type %q, expected %q", entry.Type, EntryTypeFile)
+	if !entry.FileMode.IsRegular() {
+		t.Errorf("entry type %q, expected %q", entry.FileMode.Type(), 0)
 	}
 	if entry.Name != "magic-file" {
 		t.Errorf("entry name %q, expected %q", entry.Name, "magic-file")
@@ -137,8 +138,8 @@ func testConn(t *testing.T, disableEPSV bool) {
 	if entry.Size != 0 {
 		t.Errorf("entry size %q, expected %q", entry.Size, 0)
 	}
-	if entry.Type != EntryTypeFolder {
-		t.Errorf("entry type %q, expected %q", entry.Type, EntryTypeFolder)
+	if !entry.FileMode.IsDir() {
+		t.Errorf("entry type %q, expected %q", entry.FileMode.Type(), os.ModeDir)
 	}
 	if entry.Name != "multiline-dir" {
 		t.Errorf("entry name %q, expected %q", entry.Name, "multiline-dir")

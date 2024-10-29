@@ -2,6 +2,7 @@ package ftp
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -33,17 +34,17 @@ func TestFieldsReturnCorrectData(t *testing.T) {
 			path: "/root/",
 			err:  fmt.Errorf("this is an error"),
 			entry: &Entry{
-				Name: "root",
-				Size: 123,
-				Time: time.Now(),
-				Type: EntryTypeFolder,
+				Name:     "root",
+				Size:     123,
+				Time:     time.Now(),
+				FileMode: os.ModeDir,
 			},
 		},
 	}
 
 	assert.Equal(t, "this is an error", w.Err().Error())
 	assert.Equal(t, "/root/", w.Path())
-	assert.Equal(t, EntryTypeFolder, w.Stat().Type)
+	assert.Equal(t, os.ModeDir, w.Stat().FileMode)
 }
 
 func TestSkipDirIsCorrectlySet(t *testing.T) {
@@ -71,10 +72,10 @@ func TestNoDescendDoesNotAddToStack(t *testing.T) {
 		path: "/root/",
 		err:  nil,
 		entry: &Entry{
-			Name: "root",
-			Size: 123,
-			Time: time.Now(),
-			Type: EntryTypeFolder,
+			Name:     "root",
+			Size:     123,
+			Time:     time.Now(),
+			FileMode: os.ModeDir,
 		},
 	}
 
@@ -83,10 +84,10 @@ func TestNoDescendDoesNotAddToStack(t *testing.T) {
 			path: "file",
 			err:  nil,
 			entry: &Entry{
-				Name: "file",
-				Size: 123,
-				Time: time.Now(),
-				Type: EntryTypeFile,
+				Name:     "file",
+				Size:     123,
+				Time:     time.Now(),
+				FileMode: os.FileMode(0),
 			},
 		},
 	}
@@ -116,10 +117,10 @@ func TestEmptyStackReturnsFalse(t *testing.T) {
 		path: "/root/",
 		err:  nil,
 		entry: &Entry{
-			Name: "root",
-			Size: 123,
-			Time: time.Now(),
-			Type: EntryTypeFolder,
+			Name:     "root",
+			Size:     123,
+			Time:     time.Now(),
+			FileMode: os.FileMode(0),
 		},
 	}
 
@@ -147,10 +148,10 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 		path: "root/file1",
 		err:  nil,
 		entry: &Entry{
-			Name: "file1",
-			Size: 123,
-			Time: time.Now(),
-			Type: EntryTypeFile,
+			Name:     "file1",
+			Size:     123,
+			Time:     time.Now(),
+			FileMode: os.FileMode(0),
 		},
 	}
 
@@ -159,20 +160,20 @@ func TestCurAndStackSetCorrectly(t *testing.T) {
 			path: "file",
 			err:  nil,
 			entry: &Entry{
-				Name: "file",
-				Size: 123,
-				Time: time.Now(),
-				Type: EntryTypeFile,
+				Name:     "file",
+				Size:     123,
+				Time:     time.Now(),
+				FileMode: os.FileMode(0),
 			},
 		},
 		{
 			path: "root/file1",
 			err:  nil,
 			entry: &Entry{
-				Name: "file1",
-				Size: 123,
-				Time: time.Now(),
-				Type: EntryTypeFile,
+				Name:     "file1",
+				Size:     123,
+				Time:     time.Now(),
+				FileMode: os.FileMode(0),
 			},
 		},
 	}
@@ -194,7 +195,7 @@ func TestCurInit(t *testing.T) {
 	}
 	defer mock.Close()
 
-	c, cErr := Connect(mock.Addr())
+	c, cErr := Dial(mock.Addr())
 	if cErr != nil {
 		t.Fatal(err)
 	}

@@ -3,6 +3,7 @@ package ftp
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -68,9 +69,9 @@ func parseNextRFC3659ListLine(line string, loc *time.Location, e *Entry) (*Entry
 		case "type":
 			switch value {
 			case "dir", "cdir", "pdir":
-				e.Type = EntryTypeFolder
+				e.FileMode |= os.ModeDir
 			case "file":
-				e.Type = EntryTypeFile
+				e.FileMode |= os.FileMode(0)
 			}
 		case "size":
 			if err := e.setSize(value); err != nil {
@@ -101,8 +102,11 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 
 	if fields[1] == "folder" && fields[2] == "0" {
 		e := &Entry{
-			Type: EntryTypeFolder,
-			Name: scanner.Remaining(),
+			FileMode: os.ModeDir,
+			Name:     scanner.Remaining(),
+		}
+		if err := e.setFileMod(fields[0]); err != nil {
+			return nil, err
 		}
 		if err := e.setTime(fields[3:6], now, loc); err != nil {
 			return nil, err
@@ -114,10 +118,13 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 	if fields[1] == "0" {
 		fields = append(fields, scanner.Next())
 		e := &Entry{
-			Type: EntryTypeFile,
-			Name: scanner.Remaining(),
+			FileMode: os.FileMode(0),
+			Name:     scanner.Remaining(),
 		}
 
+		if err := e.setFileMod(fields[0]); err != nil {
+			return nil, err
+		}
 		if err := e.setSize(fields[2]); err != nil {
 			return nil, errUnsupportedListLine
 		}
@@ -137,16 +144,20 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 	e := &Entry{
 		Name: scanner.Remaining(),
 	}
+
+	if err := e.setFileMod(fields[0]); err != nil {
+		return nil, err
+	}
 	switch fields[0][0] {
 	case '-':
-		e.Type = EntryTypeFile
+		e.FileMode |= os.FileMode(0)
 		if err := e.setSize(fields[4]); err != nil {
 			return nil, err
 		}
 	case 'd':
-		e.Type = EntryTypeFolder
+		e.FileMode |= os.ModeDir
 	case 'l':
-		e.Type = EntryTypeLink
+		e.FileMode |= os.ModeSymlink
 
 		// Split link name and target
 		if i := strings.Index(e.Name, " -> "); i > 0 {
@@ -156,7 +167,6 @@ func parseLsListLine(line string, now time.Time, loc *time.Location) (*Entry, er
 	default:
 		return nil, errUnknownListEntryType
 	}
-
 	if err := e.setTime(fields[5:8], now, loc); err != nil {
 		return nil, err
 	}
@@ -187,7 +197,7 @@ func parseDirListLine(line string, now time.Time, loc *time.Location) (*Entry, e
 
 	line = strings.TrimLeft(line, " ")
 	if strings.HasPrefix(line, "<DIR>") {
-		e.Type = EntryTypeFolder
+		e.FileMode |= os.ModeDir
 		line = strings.TrimPrefix(line, "<DIR>")
 	} else {
 		space := strings.Index(line, " ")
@@ -198,7 +208,7 @@ func parseDirListLine(line string, now time.Time, loc *time.Location) (*Entry, e
 		if err != nil {
 			return nil, errUnsupportedListLine
 		}
-		e.Type = EntryTypeFile
+		e.FileMode |= os.FileMode(0)
 		line = line[space:]
 	}
 
@@ -237,6 +247,39 @@ func parseListLine(line string, now time.Time, loc *time.Location) (*Entry, erro
 		}
 	}
 	return nil, errUnsupportedListLine
+}
+
+func (e *Entry) setFileMod(str string) (err error) {
+	runeStr := []rune(str)
+	if len(runeStr) < 10 {
+		return errors.New("filemod field must contain 10 chars or more")
+	}
+
+	parsePerm := func(groupPerm []rune) uint32 {
+		if len(groupPerm) != 3 {
+			return 0
+		}
+		permChar := []rune{'r', 'w', 'x'}
+		permDigit := []uint32{4, 2, 1}
+		sum := uint32(0)
+		for i := range groupPerm {
+			if groupPerm[i] == permChar[i] {
+				sum += permDigit[i]
+			}
+
+		}
+		return sum
+	}
+
+	modeUint := uint32(0)
+	modeUint += parsePerm(runeStr[1:4]) * 100 // owner
+	modeUint += parsePerm(runeStr[4:7]) * 10  // group
+	modeUint += parsePerm(runeStr[7:10])      // other
+
+	e.FileMode |= os.FileMode(modeUint)
+
+	e.FileMode.Type()
+	return nil
 }
 
 func (e *Entry) setSize(str string) (err error) {

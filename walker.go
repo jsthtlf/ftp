@@ -1,6 +1,7 @@
 package ftp
 
 import (
+	"os"
 	"path"
 )
 
@@ -28,12 +29,12 @@ func (w *Walker) Next() bool {
 		w.cur = &item{
 			path: w.root,
 			entry: &Entry{
-				Type: EntryTypeFolder,
+				FileMode: os.ModeDir,
 			},
 		}
 	}
 
-	if w.descend && w.cur.entry.Type == EntryTypeFolder {
+	if w.descend && w.cur.entry.FileMode.IsDir() {
 		entries, err := w.serverConn.List(w.cur.path)
 
 		// an error occurred, drop out and stop walking

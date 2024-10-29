@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/textproto"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -22,16 +23,6 @@ const (
 	// 30 seconds was chosen as it's the
 	// same duration as http.DefaultTransport's timeout.
 	DefaultDialTimeout = 30 * time.Second
-)
-
-// EntryType describes the different types of an Entry.
-type EntryType int
-
-// The differents types of an Entry
-const (
-	EntryTypeFile EntryType = iota
-	EntryTypeFolder
-	EntryTypeLink
 )
 
 // TransferType denotes the formats for transferring Entries.
@@ -89,11 +80,12 @@ type dialOptions struct {
 
 // Entry describes a file and is returned by List().
 type Entry struct {
-	Name   string
-	Target string // target of symbolic link
-	Type   EntryType
-	Size   uint64
-	Time   time.Time
+	Name     string
+	FileMode os.FileMode
+	Target   string // target of symbolic link
+	//Type     EntryType
+	Size uint64
+	Time time.Time
 }
 
 // Response represents a data-connection
@@ -1043,7 +1035,7 @@ func (c *ServerConn) RemoveDirRecur(path string) error {
 
 	for _, entry := range entries {
 		if entry.Name != ".." && entry.Name != "." {
-			if entry.Type == EntryTypeFolder {
+			if entry.FileMode.IsRegular() {
 				err = c.RemoveDirRecur(currentDir + "/" + entry.Name)
 				if err != nil {
 					return err
@@ -1152,9 +1144,4 @@ func (r *Response) Close() error {
 // SetDeadline sets the deadlines associated with the connection.
 func (r *Response) SetDeadline(t time.Time) error {
 	return r.conn.SetDeadline(t)
-}
-
-// String returns the string representation of EntryType t.
-func (t EntryType) String() string {
-	return [...]string{"file", "folder", "link"}[t]
 }
